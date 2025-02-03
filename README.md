@@ -44,7 +44,7 @@ Le projet est divisé en deux dossiers principaux :
      DB_PASSWORD=root
      DB_NAME=nom_de_votre_base_de_donnees
      DB_PORT=3306
-     JWT_SECRET=secretkeyanepassupprimer
+     JWT_SECRET=demander
      ```
 
 3. **Lancer le serveur** :
