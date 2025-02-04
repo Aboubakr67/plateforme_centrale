@@ -68,7 +68,8 @@ app.post("/login", async (req, res) => {
                 { expiresIn: "7d" }
             );
 
-            res.json({ success: true, message: "Connexion réussie", token });
+            res.header("Authorization", `Bearer ${token}`);
+            res.json({ success: true, message: "Connexion réussie" });
         });
     } catch (error) {
         console.error("Erreur lors de la connexion:", error);
