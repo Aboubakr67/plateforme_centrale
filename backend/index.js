@@ -76,6 +76,52 @@ app.post("/login", async (req, res) => {
     }
 });
 
+// Route pour récupérer tous les produits
+// GET http://localhost:5000/produits
+app.get("/produits", async (req, res) => {
+    try {
+        const sql = "SELECT * FROM produits";
+
+        db.query(sql, (err, results) => {
+            if (err) {
+                return res.status(500).json({ success: false, message: "Erreur serveur", error: err });
+            }
+            res.json({ success: true, produits: results });
+        });
+    } catch (error) {
+        console.error("Erreur lors de la récupération des produits :", error);
+        return res.status(500).json({ success: false, message: "Erreur interne serveur", error: error.message });
+    }
+});
+
+// Route pour récupérer un produit par son ID
+// GET http://localhost:5000/produits/:id
+app.get("/produits/:id", async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const sql = "SELECT * FROM produits WHERE id = ?";
+
+        db.query(sql, [id], (err, results) => {
+            if (err) {
+                return res.status(500).json({ success: false, message: "Erreur serveur", error: err });
+            }
+
+            // Vérification si un produit a été trouvé
+            if (results.length === 0) {
+                return res.status(404).json({ success: false, message: "Produit non trouvé." });
+            }
+
+            res.json({ success: true, produit: results[0] });
+        });
+    } catch (error) {
+        console.error("Erreur lors de la récupération du produit :", error);
+        return res.status(500).json({ success: false, message: "Erreur interne serveur", error: error.message });
+    }
+});
+
+
+
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Serveur démarré sur le port ${PORT}`));
