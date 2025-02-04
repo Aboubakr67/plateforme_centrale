@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <title>Espace Revendeur</title>
+</head>
+<body>
+    <div class="container dashboard">
+        <nav class="nav-header">
+            <div class="nav-brand">
+                <h1>Tableau de bord</h1>
+                <p class="subtitle">Gérez vos produits</p>
+            </div>
+            <div class="nav-links">
+                <button onclick="window.location.href='profil.html'" class="secondary">Mon Profil</button>
+                <button onclick="logout()" class="secondary">Déconnexion</button>
+            </div>
+        </nav>
+
+        <div class="products-section">
+            <div class="products-header">
+                <h2>Vos Produits</h2>
+                <button onclick="window.location.href='produit-form.html'" class="add-button">Ajouter un produit</button>
+            </div>
+
+            <div class="products-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nom</th>
+                            <th>Description</th>
+                            <th>Prix</th>
+                            <th>Statut</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productsTableBody">
+                        <!-- Les produits seront chargés ici dynamiquement -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Vérifier l'authentification au chargement de la page
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!localStorage.getItem('token')) {
+                window.location.href = 'index.html';
+                return;
+            }
+            await loadProducts();
+        });
+
+        // Fonction pour charger les produits
+        async function loadProducts() {
+            try {
+                const response = await fetch('http://localhost:5000/produits', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                
+                if (response.status === 401) {
+                    // Token invalide ou expiré
+                    localStorage.removeItem('token');
+                    window.location.href = 'index.html';
+                    return;
+                }
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    const tableBody = document.getElementById('productsTableBody');
+                    tableBody.innerHTML = data.produits.map(product => `
+                        <tr>
+                            <td>${product.nom}</td>
+                            <td>${product.description}</td>
+                            <td>${product.prix_achat}€</td>
+                            <td>
+                                <span class="status ${product.statut === 'DISPONIBLE' ? 'available' : 'unavailable'}">
+                                    ${product.statut}
+                                </span>
+                            </td>
+                            <td class="actions">
+                                <button onclick="editProduct(${product.id})" class="edit-button">Modifier</button>
+                                <button onclick="deleteProduct(${product.id})" class="delete-button">Supprimer</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+            }
+        }
+
+        // Fonction pour éditer un produit
+        function editProduct(id) {
+            window.location.href = `produit-form.html?id=${id}`;
+        }
+
+        // Fonction pour supprimer un produit
+        async function deleteProduct(id) {
+            if (!confirm('Êtes-vous sûr de vouloir supprimer ce produit ?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`http://localhost:5000/produits/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+
+                if (response.status === 401) {
+                    localStorage.removeItem('token');
+                    window.location.href = 'index.html';
+                    return;
+                }
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    await loadProducts(); // Recharger la liste
+                } else {
+                    alert(data.message);
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                alert('Une erreur est survenue');
+            }
+        }
+
+        // Fonction de déconnexion
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>

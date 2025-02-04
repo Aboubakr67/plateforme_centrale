@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <title>Administration</title>
+</head>
+<body>
+    <div class="container dashboard">
+        <nav class="nav-header">
+            <div class="nav-brand">
+                <h1>Administration</h1>
+                <p class="subtitle">Gestion des revendeurs</p>
+            </div>
+            <div class="nav-links">
+                <button onclick="logout()" class="secondary">Déconnexion</button>
+            </div>
+        </nav>
+
+        <div class="products-section">
+            <div class="products-header">
+                <h2>Liste des revendeurs</h2>
+            </div>
+
+            <div class="products-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nom</th>
+                            <th>Date de création</th>
+                            <th>Dernière modification</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="revendeursTableBody">
+                        <!-- Les revendeurs seront chargés ici dynamiquement -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!localStorage.getItem('adminToken')) {
+                window.location.href = 'admin-login.html';
+                return;
+            }
+            await loadRevendeurs();
+        });
+
+        async function loadRevendeurs() {
+            try {
+                const response = await fetch('http://localhost:5000/admin/revendeurs', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+                    }
+                });
+                
+                if (response.status === 401) {
+                    localStorage.removeItem('adminToken');
+                    window.location.href = 'admin-login.html';
+                    return;
+                }
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    const tableBody = document.getElementById('revendeursTableBody');
+                    tableBody.innerHTML = data.revendeurs.map(revendeur => `
+                        <tr>
+                            <td>${revendeur.id}</td>
+                            <td>${revendeur.nom}</td>
+                            <td>${new Date(revendeur.created_at).toLocaleDateString()}</td>
+                            <td>${new Date(revendeur.updated_at).toLocaleDateString()}</td>
+                            <td class="actions">
+                                <button onclick="deleteRevendeur(${revendeur.id})" class="delete-button">Supprimer</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+            }
+        }
+
+        async function deleteRevendeur(id) {
+            if (!confirm('Attention ! La suppression d\'un revendeur entraînera la suppression de tous ses produits. Êtes-vous sûr de vouloir continuer ?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`http://localhost:5000/admin/revendeurs/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+                    }
+                });
+
+                if (response.status === 401) {
+                    localStorage.removeItem('adminToken');
+                    window.location.href = 'admin-login.html';
+                    return;
+                }
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    await loadRevendeurs();
+                } else {
+                    alert(data.message);
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                alert('Une erreur est survenue');
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('adminToken');
+            window.location.href = 'admin-login.html';
+        }
+    </script>
+</body>
+</html> 

@@ -9,6 +9,7 @@ const verifyToken = require("./middlewares/verifyToken");
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 
 const db = mysql.createConnection({
@@ -32,36 +33,43 @@ db.connect(err => {
 // http://localhost:5000/login
 app.post("/login", async (req, res) => {
     const { nom, password } = req.body;
-
+    
     if (!nom || !password) {
-        return res.status(400).json({ success: false, message: "Nom et mot de passe requis." });
+        return res.status(400).json({ 
+            success: false, 
+            message: "Nom et mot de passe requis." 
+        });
     }
 
     try {
-        // Requête préparée pour éviter l'injection SQL
         const sql = "SELECT * FROM revendeurs WHERE nom = ?";
         
-        // Exécution de la requête
         db.query(sql, [nom], async (err, results) => {
             if (err) {
-                return res.status(500).json({ success: false, message: "Erreur serveur", error: err });
+                return res.status(500).json({ 
+                    success: false, 
+                    message: "Erreur serveur", 
+                    error: err 
+                });
             }
 
-            // Si aucun utilisateur n'est trouvé avec le nom donné
             if (results.length === 0) {
-                return res.status(401).json({ success: false, message: "Nom ou mot de passe incorrect." });
+                return res.status(401).json({ 
+                    success: false, 
+                    message: "Nom ou mot de passe incorrect." 
+                });
             }
 
-            const user = results[0]; // On récupère l'utilisateur trouvé
-
-            // Comparaison du mot de passe fourni avec celui haché dans la base de données
+            const user = results[0];
             const isMatch = await bcrypt.compare(password, user.password);
+            
             if (!isMatch) {
-                // Si les mots de passe ne correspondent pas
-                return res.status(401).json({ success: false, message: "Nom ou mot de passe incorrect." });
+                return res.status(401).json({ 
+                    success: false, 
+                    message: "Nom ou mot de passe incorrect." 
+                });
             }
 
-            // Si la connexion est réussie, on génère un token JWT
             const token = jwt.sign(
                 { id: user.id, nom: user.nom }, 
                 process.env.JWT_SECRET,
@@ -69,11 +77,19 @@ app.post("/login", async (req, res) => {
             );
 
             res.header("Authorization", `Bearer ${token}`);
-            res.json({ success: true, message: "Connexion réussie" });
+            res.json({ 
+                success: true, 
+                message: "Connexion réussie",
+                token: token // Ajout du token dans le corps de la réponse
+            });
         });
     } catch (error) {
         console.error("Erreur lors de la connexion:", error);
-        return res.status(500).json({ success: false, message: "Erreur interne serveur", error: error.message });
+        res.status(500).json({ 
+            success: false, 
+            message: "Erreur interne serveur", 
+            error: error.message 
+        });
     }
 });
 

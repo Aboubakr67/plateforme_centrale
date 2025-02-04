@@ -31,7 +31,6 @@ BEGIN
     FROM revendeurs 
     WHERE nom = p_nom AND id != p_id;
 
-    1 Aboubakr 
 
     IF existingUser > 0 THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Le nom est déjà pris par un autre revendeur';

@@ -1,57 +1,135 @@
-# Projet [Plateforme centrale]
+# Plateforme Centrale - Interface Revendeur
 
-## Contexte
+## Description
 
-_À compléter avec la description du projet._
+Une plateforme permettant aux revendeurs de gérer leurs produits. Les revendeurs peuvent se connecter, ajouter, modifier et supprimer des produits, ainsi que gérer leur profil.
 
-## Dossiers du projet
+## Structure du projet
 
-Le projet est divisé en deux dossiers principaux :
+```
+├── frontend/
+│   ├── components/
+│   │   └── nav.html
+│   ├── js/
+│   │   └── common.js
+│   ├── index.html
+│   ├── revendeur.html
+│   ├── produit-form.html
+│   ├── profil.html
+│   ├── 404.html
+│   └── style.css
+└── backend/
+    ├── middlewares/
+    │   └── verifyToken.js
+    ├── .env
+    ├── .env.exemple
+    ├── index.js
+    ├── package.json
+    └── script.sql
+```
 
-1. **`frontend`** : Contient le code pour l'interface utilisateur (frontend).
-2. **`backend`** : Contient le code pour le serveur, les routes API, et la gestion de la base de données.
+## Installation
 
----
+### Backend
 
-## Backend
+1. **Installation des dépendances** :
+```bash
+cd backend
+npm install
+```
 
-### Prérequis
-
-1. Assurez-vous d'avoir **Node.js** et **npm** installés sur votre machine.
-2. Vous devez avoir un **serveur MySQL** en fonctionnement et une base de données configurée.
-
-### Installation
-
-1. **Lancer l'installation des dépendances** :
-
-   - Ouvrez un terminal et allez dans le dossier `backend`.
-   - Exécutez la commande suivante pour installer les dépendances :
-     ```bash
-     npm install
-     ```
-
-2. **Créer et configurer le fichier `.env`** :
-
-   - Dans le dossier `backend`, créez un fichier `.env` en vous inspirant du fichier `.env.exemple` fourni.
-   - Remplissez les champs avec vos informations de connexion à la base de données MySQL.
-
-     Exemple de fichier `.env` :
-
-     ```ini
-     PORT=5000
-     DB_HOST=localhost
-     DB_USER=root
-     DB_PASSWORD=root
-     DB_NAME=nom_de_votre_base_de_donnees
-     DB_PORT=3306
-     JWT_SECRET=demander
-     ```
+2. **Configuration de la base de données** :
+- Créer une base de données MySQL
+- Exécuter le fichier `script.sql` dans votre base de données
+- Copier `.env.exemple` en `.env`
+- Remplir les informations dans `.env` :
+```env
+PORT=5000
+DB_HOST=localhost
+DB_USER=votre_utilisateur
+DB_PASSWORD=votre_mot_de_passe
+DB_NAME=plateforme_centrale
+DB_PORT=3306
+JWT_SECRET=votre_secret_jwt
+```
 
 3. **Lancer le serveur** :
-   - Une fois les dépendances installées et le fichier `.env` configuré, vous pouvez démarrer le serveur avec la commande :
-     ```bash
-     npm run dev
-     ```
-   - Le serveur devrait maintenant être en cours d'exécution.
+```bash
+npm run dev
+```
 
----
+### Frontend
+
+1. **Serveur local** :
+- Option 1 : Utiliser l'extension "Live Server" de VSCode
+- Option 2 : Utiliser un serveur local comme :
+```bash
+npx serve frontend
+```
+
+## Utilisation
+
+1. **Connexion** :
+- Accéder à `http://127.0.0.1:5500/frontend/index.html`
+- Utiliser les identifiants de test :
+  - Nom : "John Doe"
+  - Mot de passe : "password"
+
+2. **Fonctionnalités disponibles** :
+- Tableau de bord des produits
+- Ajout de nouveaux produits
+- Modification des produits existants
+- Suppression de produits
+- Gestion du profil
+- Déconnexion
+
+## Technologies utilisées
+
+### Frontend
+- HTML5
+- CSS3 (Design système personnalisé)
+- JavaScript vanilla
+- Fetch API pour les requêtes
+
+### Backend
+- Node.js
+- Express.js
+- MySQL
+- JWT pour l'authentification
+- bcryptjs pour le hachage des mots de passe
+
+## Sécurité
+
+- Authentification par JWT
+- Mots de passe hachés
+- Protection CORS
+- Validation des données
+- Gestion des sessions
+
+## Dépannage
+
+1. **Erreur de connexion à la base de données** :
+- Vérifier les informations dans `.env`
+- Vérifier que le serveur MySQL est en cours d'exécution
+- Vérifier que la base de données existe
+
+2. **Erreur d'authentification** :
+- Vérifier que le backend est en cours d'exécution
+- Vérifier que les identifiants sont corrects
+- Vérifier la validité du token JWT
+
+3. **Problèmes de CORS** :
+- Vérifier que le frontend est servi depuis un serveur local
+- Vérifier la configuration CORS dans le backend
+
+## Contribution
+
+1. Forker le projet
+2. Créer une branche pour votre fonctionnalité
+3. Commiter vos changements
+4. Pousser vers la branche
+5. Ouvrir une Pull Request
+
+## Licence
+
+Ce projet est sous licence MIT.
