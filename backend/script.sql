@@ -47,14 +47,14 @@ DELIMITER ;
 
 
 
--- Proceduré pour mettre à jour un produit
+-- Procedure pour mettre à jour un produit
 DELIMITER $$
 CREATE PROCEDURE update_produit(
     IN p_id INT,
     IN p_nom VARCHAR(255),
     IN p_description TEXT,
     IN p_prix_achat DECIMAL(10, 2),
-    IN p_statut ENUM('DISPONIBLE', 'EN RUPTURE')
+    IN p_statut TINYINT
 )
 BEGIN
     DECLARE existingProduit INT;

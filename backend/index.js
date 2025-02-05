@@ -42,7 +42,7 @@ app.post("/login", async (req, res) => {
     }
 
     try {
-        const sql = "SELECT * FROM revendeurs WHERE nom = ?";
+        const sql = "SELECT * FROM fournisseurs WHERE nom = ?";
         
         db.query(sql, [nom], async (err, results) => {
             if (err) {
@@ -61,14 +61,24 @@ app.post("/login", async (req, res) => {
             }
 
             const user = results[0];
-            const isMatch = await bcrypt.compare(password, user.password);
+
+            if(!user.password) {
+                if(user.code_acces !== password) {
+                    return res.status(401).json({ 
+                        success: false, 
+                        message: "Nom ou mot de passe incorrect." 
+                    });
+                }
+            } else {
+                let isMatch = await bcrypt.compare(password, user.password);
+                if (!isMatch) {
+                    return res.status(401).json({ 
+                        success: false, 
+                        message: "Nom ou mot de passe incorrect." 
+                    });
+                }
+            }       
             
-            if (!isMatch) {
-                return res.status(401).json({ 
-                    success: false, 
-                    message: "Nom ou mot de passe incorrect." 
-                });
-            }
 
             const token = jwt.sign(
                 { id: user.id, nom: user.nom }, 
@@ -139,8 +149,8 @@ app.get("/produits/:id", async (req, res) => {
 
 
 // Route PUT pour modifier un revendeur
-// PUT http://localhost:5000/revendeurs/:id
-app.put("/revendeurs/:id", verifyToken, async (req, res) => {
+// PUT http://localhost:5000/fournisseurs/:id
+app.put("/fournisseurs/:id", verifyToken, async (req, res) => {
     const { id } = req.params; // ID du revendeur à modifier
     const { nom, password } = req.body; // Nouveau nom et mot de passe
 
@@ -150,16 +160,19 @@ app.put("/revendeurs/:id", verifyToken, async (req, res) => {
     }
 
     // Vérification des champs reçus
-    if (!nom || !password) {
-        return res.status(400).json({ success: false, message: "Nom et mot de passe sont requis." });
+    if (!nom) {
+        return res.status(400).json({ success: false, message: "Nom requis." });
     }
 
     try {
-        // Hachage du mot de passe
-        const hashedPassword = await bcrypt.hash(password, 10);
+        let hashedPassword = '';
+        if(password) {
+            // Hachage du mot de passe
+        hashedPassword = await bcrypt.hash(password, 10);
+        }
 
         // Appel de la procédure stockée
-        const sql = "CALL update_revendeur(?, ?, ?)";
+        const sql = "CALL update_fournisseur(?, ?, ?)";
         db.query(sql, [id, nom, hashedPassword], (err, results) => {
             if (err) {
                 if (err.message === 'Le nom est déjà pris par un autre revendeur') {
@@ -182,10 +195,25 @@ app.put("/produits/:id", verifyToken, async (req, res) => {
     const { id } = req.params; // ID du produit à modifier
     const { nom, description, prix_achat, statut } = req.body; // Nouveaux champs du produit
 
-    // Vérification que l'utilisateur est bien le revendeur en question
-    if (req.user.id !== parseInt(id)) {
-        return res.status(403).json({ success: false, message: "Vous ne pouvez modifier que vos propres produits." });
-    }
+
+    const sql = "SELECT id_fournisseur FROM PRODUITS WHERE id = ?";
+
+    db.query(sql, [id], (err, results) => {
+        if (err) {
+            return res.status(500).json({ success: false, message: "Erreur serveur", error: err });
+        }
+
+        if (results.length === 0) {
+            return res.status(404).json({ success: false, message: "Produit non trouvé." });
+        }
+
+        const fournisseurId = results[0].id_fournisseur;
+
+        if (fournisseurId !== req.user.id) {
+            return res.status(403).json({ success: false, message: "Vous ne pouvez modifier que vos propres produits." });
+        }
+    });
+
 
     // Vérification que les champs nécessaires sont présents
     if (!nom || !description || !prix_achat || !statut) {
@@ -193,8 +221,8 @@ app.put("/produits/:id", verifyToken, async (req, res) => {
     }
 
     // Vérification de la validité du statut
-    if (statut !== 'DISPONIBLE' && statut !== 'EN RUPTURE') {
-        return res.status(400).json({ success: false, message: "Le statut doit être 'DISPONIBLE' ou 'EN RUPTURE'." });
+    if (statut !== '1' && statut !== '0') {
+        return res.status(400).json({ success: false, message: "Le statut doit être '1' pour DISPONIBLE ou '0' pour EN RUPTURE." });
     }
 
     try {
@@ -219,64 +247,54 @@ app.put("/produits/:id", verifyToken, async (req, res) => {
 });
 
 
-// Route DELETE pour supprimer un revendeur
-// DELETE http://localhost:5000/revendeurs/:id
-app.delete("/revendeurs/:id", verifyToken, async (req, res) => {
-    const { id } = req.params; // ID du revendeur à supprimer
+// Route DELETE pour supprimer un fournisseur
+// DELETE http://localhost:5000/fournisseurs/:id
+app.delete("/fournisseurs/:id", verifyToken, async (req, res) => {
+    const { id } = req.params; // ID du fournisseur à supprimer
 
     try {
-        // Appel de la procédure stockée pour supprimer le revendeur
-        const sql = "CALL delete_revendeur(?)";
+        // Appel de la procédure stockée pour supprimer le fournisseur
+        const sql = "CALL delete_fournisseur(?)";
         db.query(sql, [id], (err, results) => {
             if (err) {
                 return res.status(500).json({ success: false, message: "Erreur serveur", error: err });
             }
 
-            // Si la procédure n'a affecté aucune ligne, cela signifie que le revendeur n'a pas été trouvé
+            // Si la procédure n'a affecté aucune ligne, cela signifie que le fournisseur n'a pas été trouvé
             if (results.affectedRows === 0) {
-                return res.status(404).json({ success: false, message: "Revendeur non trouvé." });
+                return res.status(404).json({ success: false, message: "Fournisseur non trouvé." });
             }
 
-            res.json({ success: true, message: "Revendeur et ses produits supprimés avec succès." });
+            res.json({ success: true, message: "Fournisseur et ses produits supprimés avec succès." });
         });
     } catch (error) {
-        console.error("Erreur lors de la suppression du revendeur :", error);
+        console.error("Erreur lors de la suppression du fournisseur :", error);
         return res.status(500).json({ success: false, message: "Erreur interne serveur", error: error.message });
     }
 });
 
-// Route POST : Pour créer un produit / revendeurs
+// Route POST : Pour créer un produit / fournisseurs
 // http://localhost:5000/create-produit
 app.post("/create-produit", verifyToken, async (req, res) => {
-    const { nom, description, prix_achat, statut, nom_revendeur, password } = req.body;
+    const { nom, description, prix_achat, statut, nom_fournisseur, tabIdCategories } = req.body;
 
-    if(nom_revendeur) {
-        if(!password) {
-            return res.status(400).json({ success: false, message: "Le mot de passe est requis." });
-        }
-    }
-
-    if (!nom || !description || !prix_achat || !statut) {
+    if (!nom || !description || !prix_achat || !statut || !tabIdCategories || !nom_fournisseur) {
         return res.status(400).json({ success: false, message: "Tous les champs sont requis." });
     }
 
     try {
-        let hashedPassword;
-        if(nom_revendeur && password) {
-        // Hachage du mot de passe
-            hashedPassword = await bcrypt.hash(password, 10);
-        }
-        
 
-        const sql = "CALL create_produit(?, ?, ?, ?, ?, ?)";
+        const accessCode = generateAccessCode();
+    
+        const sql = "CALL create_product(?, ?, ?, ?, ?, ?, ?)";
 
-        db.query(sql, [nom, description, prix_achat, statut, nom_revendeur, hashedPassword], async (err, results) => {
+        db.query(sql, [nom, description, prix_achat, statut, nom_fournisseur, tabIdCategories, accessCode], async (err, results) => {
             if (err) {
                 return res.status(500).json({ success: false, message: "Erreur serveur", error: err });
             }
      
-         res.json({ success: true, message: "Produit créé avec succès.", token });
-                });
+         res.json({ success: true, message: "Produit créé avec succès."});
+        });
     } catch (error) {
         console.error("Erreur lors de la création du produit :", error);
         return res.status(500).json({ success: false, message: "Erreur interne serveur", error: error.message });
@@ -293,7 +311,7 @@ app.get("/produits_sportsalut", async (req, res) => {
             if (err) {
                 return res.status(500).json({ success: false, message: "Erreur serveur", error: err });
             }
-            res.json({ success: true, produits: results });
+            res.json({ success: true, produits: results[0] });
         });
     } catch (error) {
         console.error("Erreur lors de la récupération des produits :", error);
@@ -311,7 +329,7 @@ app.get("/produits_gamez", async (req, res) => {
             if (err) {
                 return res.status(500).json({ success: false, message: "Erreur serveur", error: err });
             }
-            res.json({ success: true, produits: results });
+            res.json({ success: true, produits: results[0] });
         });
     } catch (error) {
         console.error("Erreur lors de la récupération des produits :", error);
@@ -330,7 +348,7 @@ app.get("/produits_medidonc", async (req, res) => {
             if (err) {
                 return res.status(500).json({ success: false, message: "Erreur serveur", error: err });
             }
-            res.json({ success: true, produits: results });
+            res.json({ success: true, produits: results[0] });
         });
     } catch (error) {
         console.error("Erreur lors de la récupération des produits :", error);
@@ -342,6 +360,20 @@ app.get("/produits_medidonc", async (req, res) => {
 app.get("/verifyToken", verifyToken, (req, res) => {
     res.json({ success: true, message: "Token valide." });
 });
+
+// Fonction pour générer un code aléatoire de 10 caractères
+const generateAccessCode = (length = 10) => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let code = '';
+
+    for (let i = 0; i < length; i++) {
+        const randomIndex = Math.floor(Math.random() * chars.length);
+        code += chars[randomIndex];
+    }
+
+    return code;
+};
+
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Serveur démarré sur le port ${PORT}`));
