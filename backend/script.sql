@@ -101,3 +101,74 @@ BEGIN
 END $$
 DELIMITER ;
 
+
+-- Procédure Marevan pour récupérer les produits de sport
+
+DELIMITER $$
+
+CREATE PROCEDURE produits_sportsalut()
+BEGIN
+    SELECT p.id, p.nom, p.description, p.prix_achat, p.statut, f.id AS fournisseur_id, f.nom AS fournisseur_nom
+    FROM produits p
+    JOIN produits_categories pc ON p.id = pc.id_produit
+    JOIN categories c ON pc.id_categorie = c.id
+    JOIN fournisseurs f ON p.id_fournisseur = f.id
+    WHERE c.nom = 'Sport';
+END $$
+
+DELIMITER ;
+
+CALL produits_sportsalut();
+
+
+-- Procédure Marevan pour récupérer les jeux vidéos et jeux de plateaux
+
+DELIMITER $$
+CREATE PROCEDURE produits_gamez()
+BEGIN
+    SELECT 
+        p.id AS produit_id,
+        p.nom AS produit_nom,
+        p.description,
+        p.prix_achat,
+        p.statut,
+        f.id AS fournisseur_id,
+        f.nom AS fournisseur_nom,
+        f.date_création AS fournisseur_date_creation
+    FROM produits p
+    JOIN produits_categories pc ON p.id = pc.id_produit
+    JOIN categories c ON pc.id_categorie = c.id
+    JOIN fournisseurs f ON p.id_fournisseur = f.id
+    WHERE c.nom IN ('Jeu vidéo', 'Jeu de société');
+END $$
+DELIMITER ;
+
+CALL produits_gamez();
+
+
+-- Procédure Marevan pour récupérer les produits de santé
+
+DELIMITER $$
+
+CREATE PROCEDURE produits_medidonc()
+BEGIN
+    SELECT 
+        p.id AS produit_id,
+        p.nom AS produit_nom,
+        p.description,
+        p.date_modification,
+        p.statut,
+        p.prix_achat,
+        f.id AS fournisseur_id,
+        f.nom AS fournisseur_nom,
+        f.date_création AS fournisseur_date_creation
+    FROM produits p
+    JOIN produits_categories pc ON p.id = pc.id_produit
+    JOIN categories c ON pc.id_categorie = c.id
+    JOIN fournisseurs f ON p.id_fournisseur = f.id
+    WHERE c.nom = 'Santé';
+END $$
+
+DELIMITER ;
+
+CALL produits_medidonc();
