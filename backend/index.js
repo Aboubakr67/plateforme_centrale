@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 dotenv.config();
 import express from "express";
-import mysql from "mysql2";
+import mysql from "mysql";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import cors from "cors";
@@ -44,7 +44,7 @@ app.post("/login", async (req, res) => {
     }
 
     try {
-        const sql = "SELECT * FROM fournisseurs WHERE nom = ?";
+        const sql = "SELECT * FROM users WHERE nom = ?";
         
         db.query(sql, [nom], async (err, results) => {
             if (err) {
@@ -63,6 +63,8 @@ app.post("/login", async (req, res) => {
             }
 
             const user = results[0];
+
+            console.log(user);
 
             if(!user.password) {
                 if(user.code_acces !== password) {
@@ -83,7 +85,7 @@ app.post("/login", async (req, res) => {
             
 
             const token = jwt.sign(
-                { id: user.id, nom: user.nom }, 
+                { id: user.id, nom: user.nom, role: user.id_role === 1 ? "admin" : "revendeur" }, 
                 process.env.JWT_SECRET,
                 { expiresIn: "7d" }
             );
@@ -157,7 +159,7 @@ app.put("/fournisseurs/:id", verifyToken, async (req, res) => {
     const { nom, password } = req.body; // Nouveau nom et mot de passe
 
     // Vérification que l'utilisateur est bien le revendeur en question
-    if (req.user.id !== parseInt(id)) {
+    if (req.user.id !== parseInt(id) || req.user.id_role !== 1) {
         return res.status(403).json({ success: false, message: "Vous ne pouvez modifier que vos propres données." });
     }
 
@@ -174,7 +176,7 @@ app.put("/fournisseurs/:id", verifyToken, async (req, res) => {
         }
 
         // Appel de la procédure stockée
-        const sql = "CALL update_fournisseur(?, ?, ?)";
+        const sql = "CALL update_user(?, ?, ?)";
         db.query(sql, [id, nom, hashedPassword], (err, results) => {
             if (err) {
                 if (err.message === 'Le nom est déjà pris par un autre revendeur') {
@@ -198,7 +200,7 @@ app.put("/produits/:id", verifyToken, async (req, res) => {
     const { nom, description, prix_achat, statut } = req.body; // Nouveaux champs du produit
 
 
-    const sql = "SELECT id_fournisseur FROM PRODUITS WHERE id = ?";
+    const sql = "SELECT id_user FROM PRODUITS WHERE id = ?";
 
     db.query(sql, [id], (err, results) => {
         if (err) {
@@ -209,9 +211,9 @@ app.put("/produits/:id", verifyToken, async (req, res) => {
             return res.status(404).json({ success: false, message: "Produit non trouvé." });
         }
 
-        const fournisseurId = results[0].id_fournisseur;
+        const userId = results[0].id_user;
 
-        if (fournisseurId !== req.user.id) {
+        if (userId !== req.user.id && req.user.id_role !== 1) {
             return res.status(403).json({ success: false, message: "Vous ne pouvez modifier que vos propres produits." });
         }
     });
@@ -279,6 +281,10 @@ app.delete("/fournisseurs/:id", verifyToken, async (req, res) => {
 // http://localhost:5000/create-produit
 app.post("/create-produit", verifyToken, async (req, res) => {
     const { nom, description, prix_achat, statut, nom_fournisseur, tabIdCategories } = req.body;
+
+    if(req.user.id_role !== 1) {
+        return res.status(403).json({ success: false, message: "Vous ne pouvez pas créer un produit." });
+    }
 
     if (!nom || !description || !prix_achat || !statut || !tabIdCategories || !nom_fournisseur) {
         return res.status(400).json({ success: false, message: "Tous les champs sont requis." });
