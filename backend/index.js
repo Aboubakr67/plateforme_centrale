@@ -1,7 +1,8 @@
 import dotenv from "dotenv";
 dotenv.config();
 import express from "express";
-import mysql from "mysql";
+// import mysql from "mysql2";
+import mysql from "mysql2/promise";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import cors from "cors";
@@ -14,15 +15,26 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 
-const db = mysql.createConnection({
+// const db = mysql.createConnection({
+//     host: process.env.DB_HOST,
+//     port: process.env.DB_PORT,
+//     user: process.env.DB_USER,
+//     password: process.env.DB_PASSWORD,
+//     database: process.env.DB_NAME
+// });
+
+const db = mysql.createPool({
     host: process.env.DB_HOST,
     port: process.env.DB_PORT,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME
+    database: process.env.DB_NAME,
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
 });
 
-db.connect(err => {
+db.getConnection(err => {
     if (err) {
         console.error("Erreur de connexion à la base de données :", err);
         process.exit(1); // Arrête le serveur en cas d'erreur critique
@@ -278,29 +290,49 @@ app.delete("/fournisseurs/:id", verifyToken, async (req, res) => {
 // Route POST : Pour créer un produit / fournisseurs
 // http://localhost:5000/create-produit
 app.post("/create-produit", verifyToken, async (req, res) => {
-    const { nom, description, prix_achat, statut, nom_fournisseur, tabIdCategories } = req.body;
+    const { nom, description, prix_achat, statut, nom_fournisseur, tabNomCategories } = req.body;
 
-    if(req.user.id_role !== 1) {
+    
+    console.log(req.user);
+    if(req.user.role !== 'admin') {
         return res.status(403).json({ success: false, message: "Vous ne pouvez pas créer un produit." });
     }
 
-    if (!nom || !description || !prix_achat || !statut || !tabIdCategories || !nom_fournisseur) {
+    if (!nom || !description || !prix_achat || !statut || !tabNomCategories || !nom_fournisseur) {
         return res.status(400).json({ success: false, message: "Tous les champs sont requis." });
     }
 
+
+    if (!Array.isArray(tabNomCategories) || tabNomCategories.length === 0) {
+        return res.status(400).json({ success: false, message: "Le tableau des catégories est invalide." });
+    }
+
     try {
+        const tabIdCategories = await getCategories(tabNomCategories);
+
+        console.log(tabIdCategories);
+        console.log(typeof tabIdCategories);
+        // convert tabIdCategories to string split by ,
+        const tabIdCategoriesString = tabIdCategories.join(',');
+        console.log(tabIdCategoriesString);
+
 
         const accessCode = generateAccessCode();
     
         const sql = "CALL create_product(?, ?, ?, ?, ?, ?, ?)";
 
-        db.query(sql, [nom, description, prix_achat, statut, nom_fournisseur, tabIdCategories, accessCode], async (err, results) => {
+        db.query(sql, [nom, description, prix_achat, statut, nom_fournisseur, tabIdCategoriesString, accessCode], (err, results) => {
             if (err) {
                 return res.status(500).json({ success: false, message: "Erreur serveur", error: err });
             }
+
+            console.log(results);
+
      
          res.json({ success: true, message: "Produit créé avec succès."});
         });
+        
+
     } catch (error) {
         console.error("Erreur lors de la création du produit :", error);
         return res.status(500).json({ success: false, message: "Erreur interne serveur", error: error.message });
@@ -448,5 +480,52 @@ app.get("/fournisseurs/:id", verifyToken, async (req, res) => {
 });
 
 
+async function getCategories(tabNomCategories) {
+    let tabIdCategories = [];
+
+    if (!Array.isArray(tabNomCategories) || tabNomCategories.length === 0) {
+        return tabIdCategories;
+    }
+
+    const queries = tabNomCategories.map(async (categoryName) => {
+        const sql = "SELECT GetOrCreateCategory(?) AS id";
+        try {
+            const [rows] = await db.query(sql, [categoryName]);
+
+            if (Array.isArray(rows) && rows.length > 0 && rows[0].id) {
+                tabIdCategories.push(rows[0].id);
+            } else {
+                console.error(`⚠️ Problème lors de la récupération de l'ID pour : ${categoryName}`);
+            }
+        } catch (error) {
+            console.error(`❌ Erreur MySQL pour ${categoryName} :`, error);
+        }
+    });
+
+    await Promise.all(queries); // Exécute toutes les requêtes SQL en parallèle
+    return tabIdCategories;
+}
+
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Serveur démarré sur le port ${PORT}`));
+
+
+const test = async (nom, description, prix_achat, statut, nom_fournisseur, tabIdCategoriesString, accessCode) => {
+// test this code
+const sql = "CALL create_product(?, ?, ?, ?, ?, ?, ?)";
+
+db.query(sql, [nom, description, prix_achat, statut, nom_fournisseur, tabIdCategoriesString, accessCode], (err, results) => {
+    if (err) {
+        return res.status(500).json({ success: false, message: "Erreur serveur", error: err });
+    }
+
+    console.log(results);
+
+
+ res.json({ success: true, message: "Produit créé avec succès."});
+});
+
+}
+
+test("nom", "description", 19, 1, "nom_fournisseur", "1,2", "accessCode");
