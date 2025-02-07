@@ -509,23 +509,3 @@ async function getCategories(tabNomCategories) {
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Serveur démarré sur le port ${PORT}`));
-
-
-const test = async (nom, description, prix_achat, statut, nom_fournisseur, tabIdCategoriesString, accessCode) => {
-// test this code
-const sql = "CALL create_product(?, ?, ?, ?, ?, ?, ?)";
-
-db.query(sql, [nom, description, prix_achat, statut, nom_fournisseur, tabIdCategoriesString, accessCode], (err, results) => {
-    if (err) {
-        return res.status(500).json({ success: false, message: "Erreur serveur", error: err });
-    }
-
-    console.log(results);
-
-
- res.json({ success: true, message: "Produit créé avec succès."});
-});
-
-}
-
-test("nom", "description", 19, 1, "nom_fournisseur", "1,2", "accessCode");
