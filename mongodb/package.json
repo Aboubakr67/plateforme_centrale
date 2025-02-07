@@ -2,10 +2,9 @@
   "name": "mongodb",
   "version": "1.0.0",
   "description": "1. **Installation des dépendances** :\r ```bash\r npm install mysql\r npm install mongodb\r ```",
-  "main": "config.js",
+  "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon script.js"
+    "start": "node index.js"
   },
   "keywords": [],
   "author": "",
