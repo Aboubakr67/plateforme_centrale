@@ -398,6 +398,24 @@ app.get("/fournisseurs", async (req, res) => {
     }
 });
 
+// Route GET : Pour récupérer tous les catégories
+// GET http://localhost:5000/categories
+app.get("/categories", async (req, res) => {
+    try {
+        const sql = "SELECT * FROM categories";
+
+        db.query(sql, (err, results) => {
+            if (err) {
+                return res.status(500).json({ success: false, message: "Erreur serveur", error: err });
+            }
+            res.json({ success: true, categories: results });
+        });
+    } catch (error) {
+        console.error("Erreur lors de la récupération des users :", error);
+        return res.status(500).json({ success: false, message: "Erreur interne serveur", error: error.message });
+    }
+});
+
 // ROUTE GET : Récupérer un user par son ID
 // GET http://localhost:5000/fournisseurs/:id
 app.get("/fournisseurs/:id", verifyToken, async (req, res) => {
