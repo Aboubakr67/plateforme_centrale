@@ -65,16 +65,19 @@ INSERT INTO `categories` (`nom`, `date_creation`) VALUES
 ('Accessoire High Tech', '2025-02-04');
 
 INSERT INTO `produits` (`nom`, `description`, `prix_achat`, `statut`, `date_creation`, `id_user`) VALUES
-('Monopoly', 'Jeu de famille', 10.00, 1, '2025-02-03', 1),
-('Gant de boxe', 'Gant pour taper', 8.00, 1, '2025-02-04', 1),
+('Monopoly', 'Jeu de famille', 10.00, 1, '2025-02-03', 2),
+('Gant de boxe', 'Gant pour taper', 8.00, 1, '2025-02-04', 2),
+('Crampon de football', 'Pour jouer au football', 28.00, 1, '2025-02-04', 2),
 ('Ordinateur HP', 'PC Portable 15 pouces', 750.99, 1, '2025-02-04', 3),
-('Sac à dos', 'Sac à dos enfant', 12.99, 1, '2025-02-04', 2),
-('Ecouteurs', 'Ecouteurs sans fil', 19.99, 1, '2025-02-04', 2);
+('Sac à dos', 'Sac à dos enfant', 12.99, 1, '2025-02-04', 4),
+('Ecouteurs', 'Ecouteurs sans fil', 19.99, 1, '2025-02-04', 4);
 
 INSERT INTO `produits_categories` (`id_produit`, `id_categorie`) VALUES
 (1, 1),
 (2, 2),
-(2, 3);
+(3, 2),
+(2, 3),
+(5, 4);
 
 
 

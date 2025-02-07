@@ -64,8 +64,6 @@ app.post("/login", async (req, res) => {
 
             const user = results[0];
 
-            console.log(user);
-
             if(!user.password) {
                 if(user.code_acces !== password) {
                     return res.status(401).json({ 
@@ -159,7 +157,7 @@ app.put("/fournisseurs/:id", verifyToken, async (req, res) => {
     const { nom, password } = req.body; // Nouveau nom et mot de passe
 
     // Vérification que l'utilisateur est bien le revendeur en question
-    if (req.user.id !== parseInt(id) || req.user.id_role !== 1) {
+    if (req.user.id !== parseInt(id) && req.user.id_role !== 1) {
         return res.status(403).json({ success: false, message: "Vous ne pouvez modifier que vos propres données." });
     }
 
@@ -258,7 +256,7 @@ app.delete("/fournisseurs/:id", verifyToken, async (req, res) => {
 
     try {
         // Appel de la procédure stockée pour supprimer le fournisseur
-        const sql = "CALL delete_fournisseur(?)";
+        const sql = "CALL delete_user(?)";
         db.query(sql, [id], (err, results) => {
             if (err) {
                 return res.status(500).json({ success: false, message: "Erreur serveur", error: err });
@@ -381,6 +379,55 @@ const generateAccessCode = (length = 10) => {
 
     return code;
 };
+
+// Route GET : Pour récupérer tous les users (fournisseurs)
+// GET http://localhost:5000/fournisseurs
+app.get("/fournisseurs", async (req, res) => {
+    try {
+        const sql = "SELECT u.id, u.nom, u.date_creation, u.date_modification, u.code_acces FROM users u WHERE id_role = 2";
+
+        db.query(sql, (err, results) => {
+            if (err) {
+                return res.status(500).json({ success: false, message: "Erreur serveur", error: err });
+            }
+            res.json({ success: true, users: results });
+        });
+    } catch (error) {
+        console.error("Erreur lors de la récupération des users :", error);
+        return res.status(500).json({ success: false, message: "Erreur interne serveur", error: error.message });
+    }
+});
+
+// ROUTE GET : Récupérer un user par son ID
+// GET http://localhost:5000/fournisseurs/:id
+app.get("/fournisseurs/:id", verifyToken, async (req, res) => {
+    const { id } = req.params;
+
+    if (req.user.id !== parseInt(id)) {
+        return res.status(403).json({ success: false, message: "Ce n'est pas votre compte" });
+    }
+
+
+
+    try {
+        const sql = "SELECT u.id, u.nom, u.date_creation, u.date_modification, u.code_acces FROM users u WHERE id = ?";
+
+        db.query(sql, [id], (err, results) => {
+            if (err) {
+                return res.status(500).json({ success: false, message: "Erreur serveur", error: err });
+            }
+            
+            if (results.length === 0) {
+                return res.status(404).json({ success: false, message: "User not found" });
+            }
+
+            res.json({ success: true, user: results[0] });
+        });
+    } catch (error) {
+        console.error("Erreur lors de la récupération du user :", error);
+        return res.status(500).json({ success: false, message: "Erreur interne serveur", error: error.message });
+    }
+});
 
 
 const PORT = process.env.PORT || 5000;

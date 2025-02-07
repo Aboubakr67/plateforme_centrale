@@ -27,10 +27,10 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>ID</th>
                             <th>Nom</th>
                             <th>Date de création</th>
                             <th>Dernière modification</th>
+                            <th>Code accès</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -53,7 +53,7 @@
 
         async function loadRevendeurs() {
             try {
-                const response = await fetch('http://localhost:5000/admin/revendeurs', {
+                const response = await fetch('http://localhost:5000/fournisseurs', {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
                     }
@@ -66,17 +66,19 @@
                 }
 
                 const data = await response.json();
+
+                console.log(data);
                 
                 if (data.success) {
                     const tableBody = document.getElementById('revendeursTableBody');
-                    tableBody.innerHTML = data.revendeurs.map(revendeur => `
+                    tableBody.innerHTML = data.users.map(fournisseur => `
                         <tr>
-                            <td>${revendeur.id}</td>
-                            <td>${revendeur.nom}</td>
-                            <td>${new Date(revendeur.created_at).toLocaleDateString()}</td>
-                            <td>${new Date(revendeur.updated_at).toLocaleDateString()}</td>
+                            <td>${fournisseur.nom}</td>
+                            <td>${new Date(fournisseur.date_creation).toLocaleDateString()}</td>
+                            <td>${new Date(fournisseur.date_modification).toLocaleDateString()}</td>
+                            <td>${fournisseur.code_acces}</td>
                             <td class="actions">
-                                <button onclick="deleteRevendeur(${revendeur.id})" class="delete-button">Supprimer</button>
+                                <button onclick="deleteRevendeur(${fournisseur.id})" class="delete-button">Supprimer</button>
                             </td>
                         </tr>
                     `).join('');
@@ -92,7 +94,7 @@
             }
 
             try {
-                const response = await fetch(`http://localhost:5000/admin/revendeurs/${id}`, {
+                const response = await fetch(`http://localhost:5000/fournisseurs/${id}`, {
                     method: 'DELETE',
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('adminToken')}`

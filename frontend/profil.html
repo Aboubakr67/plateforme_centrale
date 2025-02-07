@@ -54,9 +54,28 @@
             await loadProfile();
         });
 
-        async function loadProfile() {
+        const token = localStorage.getItem("token");
+        let userId;
+
+        if (token) {
             try {
-                const response = await fetch('http://localhost:5000/profile', {
+                const payloadBase64 = token.split(".")[1]; // Récupère la partie payload
+                const payloadJson = atob(payloadBase64); // Décode en JSON
+                const payload = JSON.parse(payloadJson); // Convertit en objet JS
+                userId = payload.id;
+
+            } catch (error) {
+                console.error("Erreur lors du décodage du token :", error);
+            }
+        } else {
+            console.log("Aucun token disponible.");
+        }
+        async function loadProfile() {
+
+
+
+            try {
+                const response = await fetch(`http://localhost:5000/fournisseurs/${userId}`, {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
                     }
@@ -69,6 +88,7 @@
                 }
 
                 const data = await response.json();
+                console.log(data);
                 if (data.success) {
                     document.getElementById('nom').value = data.user.nom;
                 }
@@ -98,7 +118,7 @@
             };
 
             try {
-                const response = await fetch('http://localhost:5000/profile', {
+                const response = await fetch(`http://localhost:5000/fournisseurs/${userId}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
