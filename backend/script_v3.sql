@@ -95,7 +95,8 @@ BEGIN
   DECLARE v_user_id INT;
   DECLARE v_produit_id INT;
 
-
+  -- ✅ Commence une transaction
+  START TRANSACTION;
 
   -- Vérifier si l'utilisateur existe déjà
   SELECT id INTO v_user_id FROM users WHERE nom = p_user_nom;
@@ -119,6 +120,12 @@ BEGIN
   PREPARE stmt FROM @sql;
   EXECUTE stmt;
   DEALLOCATE PREPARE stmt;
+
+  -- ✅ Valide la transaction
+  COMMIT;
+
+  -- ✅ Renvoie un message de confirmation
+  SELECT 'Produit inséré avec succès' AS message;
 END //
 DELIMITER ;
 
@@ -262,4 +269,28 @@ BEGIN
     JOIN users u ON p.id_user = u.id
     WHERE c.nom = 'Santé';
 END $$
+DELIMITER ;
+
+
+
+DELIMITER //
+
+CREATE FUNCTION GetOrCreateCategory(catNom VARCHAR(100)) RETURNS INT
+DETERMINISTIC
+BEGIN
+    DECLARE existingId INT;
+
+    -- Vérifie si la catégorie existe déjà
+    SELECT id INTO existingId FROM categories WHERE nom = catNom LIMIT 1;
+
+    -- Si elle existe, retourne l'ID
+    IF existingId IS NOT NULL THEN
+        RETURN existingId;
+    ELSE
+        -- Sinon, insère la nouvelle catégorie et retourne son nouvel ID
+        INSERT INTO categories (nom) VALUES (catNom);
+        RETURN LAST_INSERT_ID();
+    END IF;
+END //
+
 DELIMITER ;
