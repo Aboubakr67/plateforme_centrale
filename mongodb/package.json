@@ -4,6 +4,7 @@
   "description": "1. **Installation des dépendances** :\r ```bash\r npm install mysql\r npm install mongodb\r ```",
   "main": "index.js",
   "scripts": {
+    "dev": "node --watch index.js",
     "start": "node index.js"
   },
   "keywords": [],
