@@ -283,7 +283,7 @@ app.delete("/fournisseurs/:id", verifyToken, async (req, res) => {
 // http://localhost:5000/create-produit
 app.post("/create-produit", verifyToken, async (req, res) => {
     const { nom, description, prix_achat, statut, nom_fournisseur, tabNomCategories } = req.body;
-
+    
     if (req.user.role !== 'admin') {
         return res.status(403).json({ success: false, message: "Vous ne pouvez pas créer un produit." });
     }
@@ -459,7 +459,6 @@ async function getCategories(tabNomCategories) {
 
     return tabIdCategories;
 }
-
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Serveur démarré sur le port ${PORT}`));

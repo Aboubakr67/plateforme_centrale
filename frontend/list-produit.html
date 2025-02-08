@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <title>Espace Revendeur</title>
 </head>
 <body>
@@ -14,7 +15,7 @@
                 <p class="subtitle">Gérez vos produits</p>
             </div>
             <div class="nav-links">
-                <button onclick="window.location.href='profil.html'" class="secondary">Mon Profil</button>
+                <button onclick="window.location.href='admin.html'" class="primary">Retour à l'administration</button>
                 <button onclick="logout()" class="secondary">Déconnexion</button>
             </div>
         </nav>
@@ -45,27 +46,32 @@
     </div>
 
     <script>
-        // Vérifier l'authentification au chargement de la page
+        // Vérifier l'authentification et rafraîchir la liste au chargement
         document.addEventListener('DOMContentLoaded', async () => {
-            if (!localStorage.getItem('token')) {
+            const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+            if (!token) {
                 window.location.href = 'index.html';
                 return;
             }
             await loadProducts();
+
+            // Rafraîchir la liste toutes les 5 secondes
+            setInterval(loadProducts, 5000);
         });
 
         // Fonction pour charger les produits
         async function loadProducts() {
             try {
+                const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
                 const response = await fetch('http://localhost:5000/produits', {
                     headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        'Authorization': `Bearer ${token}`
                     }
                 });
                 
                 if (response.status === 401) {
-                    // Token invalide ou expiré
                     localStorage.removeItem('token');
+                    localStorage.removeItem('adminToken');
                     window.location.href = 'index.html';
                     return;
                 }
@@ -80,19 +86,21 @@
                             <td>${product.description}</td>
                             <td>${product.prix_achat}€</td>
                             <td>
-                                <span class="status ${product.statut === 'DISPONIBLE' ? 'available' : 'unavailable'}">
-                                    ${product.statut}
+                                <span class="status-badge ${Number(product.statut) === 1 ? 'status-available' : 'status-unavailable'}">
+                                    ${Number(product.statut) === 1 ? 'Disponible' : 'En rupture'}
                                 </span>
                             </td>
                             <td class="actions">
-                                <button onclick="editProduct(${product.id})" class="edit-button">Modifier</button>
-                                <button onclick="deleteProduct(${product.id})" class="delete-button">Supprimer</button>
+                                <button onclick="editProduct(${product.id})" class="edit-button">
+                                    <i class="fas fa-edit"></i> Modifier
+                                </button>
                             </td>
                         </tr>
                     `).join('');
                 }
             } catch (error) {
                 console.error('Erreur:', error);
+                alert('Une erreur est survenue lors du chargement des produits');
             }
         }
 
@@ -101,42 +109,10 @@
             window.location.href = `produit-form.html?id=${id}`;
         }
 
-        // Fonction pour supprimer un produit
-        async function deleteProduct(id) {
-            if (!confirm('Êtes-vous sûr de vouloir supprimer ce produit ?')) {
-                return;
-            }
-
-            try {
-                const response = await fetch(`http://localhost:5000/produits/${id}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                });
-
-                if (response.status === 401) {
-                    localStorage.removeItem('token');
-                    window.location.href = 'index.html';
-                    return;
-                }
-
-                const data = await response.json();
-                
-                if (data.success) {
-                    await loadProducts(); // Recharger la liste
-                } else {
-                    alert(data.message);
-                }
-            } catch (error) {
-                console.error('Erreur:', error);
-                alert('Une erreur est survenue');
-            }
-        }
-
         // Fonction de déconnexion
         function logout() {
             localStorage.removeItem('token');
+            localStorage.removeItem('adminToken');
             window.location.href = 'index.html';
         }
     </script>
