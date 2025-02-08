@@ -16,34 +16,68 @@
         <form id="productForm" onsubmit="handleSubmit(event)">
             <div class="form-group">
                 <label for="nom">Nom du produit</label>
-                <input type="text" id="nom" name="nom" placeholder="Entrez le nom du produit" required>
+                <input type="text" id="nom" name="nom" placeholder="Entrez le nom du produit" >
+            </div>
+
+            <div class="form-group">
+                <label for="categorie">Catégorie produit</label>
+                <div id="select_categorie"> 
+                    <!-- <span class="tag">
+                        Sport
+                        <span>
+                            &times;
+                        </span>
+                    </span> -->
+                </div>
+                <select id="categorie" name="categorie" onclick="displayCreatecategorie()"> 
+                    <option value="aucun" selected > 
+                        aucun
+                    </option>
+                </select> 
+            </div>
+
+            <div class="form-group" id="create_categorie" style="display : none">
+                <label for="cree_categorie">Crée categorie</label>
+                <input type="text" id="cree_categorie" name="cree_categorie" placeholder="nom categorie">
             </div>
 
             <div class="form-group">
                 <label for="description">Description</label>
-                <textarea id="description" name="description" placeholder="Entrez la description du produit" required></textarea>
+                <textarea id="description" name="description" placeholder="Entrez la description du produit" ></textarea>
             </div>
 
             <div class="form-group">
                 <label for="prix_achat">Prix d'achat (€)</label>
-                <input type="number" id="prix_achat" name="prix_achat" step="0.01" min="0" placeholder="0.00" required>
+                <input type="number" id="prix_achat" name="prix_achat" step="0.01" min="0" placeholder="0.00" >
             </div>
-
+            
             <div class="form-group">
                 <label for="statut">Statut</label>
-                <select id="statut" name="statut" required>
+                <select id="statut" name="statut" >
                     <option value="DISPONIBLE">Disponible</option>
                     <option value="EN RUPTURE">En rupture</option>
                 </select>
             </div>
-
+            <div class="form-group">
+                <label for="fournisseur">fournisseur</label>
+                <select id="fournisseur" name="fournisseur" onclick="displayCreateFournisseurs()" >
+                    <option value="aucun" selected > 
+                        aucun
+                    </option>
+                </select> 
+            </div>
+            <div class="form-group" id="create_fournisseur" style="display : none">
+                <label for="cree_fournisseur">Crée fournisseur</label>
+                <input type="text" id="cree_fournisseur" name="cree_fournisseur" placeholder="nom fournisseur">
+            </div>
             <div class="button-group">
                 <button type="submit">Enregistrer</button>
                 <button type="button" class="secondary" onclick="window.location.href='revendeur.html'">Annuler</button>
             </div>
+
         </form>
     </div>
-
+    
     <script>
         // Récupérer l'ID du produit depuis l'URL si on est en mode édition
         const urlParams = new URLSearchParams(window.location.search);
@@ -72,14 +106,147 @@
             }
         }
 
+
+
+        async function getfournisseurs (){
+            try {
+                const response = await fetch(`http://localhost:5000/fournisseurs/`);
+                const data = await response.json();
+                const liste_user = data.users 
+                const liste_name_user = liste_user.map((name)=> {return name.nom})
+                const select_element = document.getElementById("fournisseur")
+                liste_name_user.forEach(element => {
+                    const option = new Option (element, element)
+                    select_element.add(option)
+                });
+                // console.log(liste_name_user)
+             }
+            catch (error) {
+                console.error('Erreur:', error);
+            }
+        }
+        getfournisseurs()
+
+        function displayCreateFournisseurs(){
+            const select = document.getElementById("fournisseur")
+            const create = document.getElementById("create_fournisseur")
+
+            if (select.value === "aucun"){
+                create.style.display = "block"
+                
+            }
+          else if (select.value !== "aucun"){
+                create.style.display = "none"
+            }
+        }
+        displayCreateFournisseurs()
+
+        const tab_categorie = []
+        function displayCreatecategorie (){
+            const select_categorie = document.getElementById("categorie")
+            const create_categorie = document.getElementById("create_categorie")
+            if (select_categorie.value ==="aucun"){
+                create_categorie.style.display = "block"
+                
+            }
+          else if (select_categorie.value !== "aucun"){
+                create_categorie.style.display = "none"
+            }
+
+            if (select_categorie.value !== "aucun" && !tab_categorie.includes(select_categorie.value)){
+                tab_categorie.push(select_categorie.value)
+                span_categorie()
+            }
+            else (tab_categorie.includes(select_categorie.value))
+
+            // console.log(tab_categorie)
+            }
+
+        displayCreatecategorie()
+
+        async function getCategories(){
+            try {
+                const response = await fetch(`http://localhost:5000/categories/`);
+                const data = await response.json();
+                const list_categorie = data.categories
+                const liste_name_categorie = list_categorie.map((name)=> {return name.nom})
+                const select_element = document.getElementById("categorie")
+                liste_name_categorie.forEach(element => {
+                    const option = new Option (element, element)
+                    select_element.add(option)
+                });
+                // console.log(select_element)
+             }
+            catch (error) {
+                console.error('Erreur:', error);
+            }
+        } 
+        getCategories()
+
+        function selectMultipleOption(){
+            const select = document.getElementById("categorie")
+            const selectValue = Array.from(select.selectedoptions).map(option => option.value)
+            alert("option : " + selectValue.join(", "))
+        }
+
+        function span_categorie (){
+            const container = document.getElementById("select_categorie")
+            container.innerHTML = ""
+
+            tab_categorie.forEach((element) => {
+               const span = document.createElement("span")
+               span.classList.add("tag")
+               span.textContent = element
+               
+               const close_button = document.createElement("span")
+                close_button.innerHTML = "&times;"
+                close_button.style.cursor = "pointer"
+
+               close_button.addEventListener("click", () => {
+                    const index = tab_categorie.indexOf(element)
+                    
+                    if (index !== -1){
+                            tab_categorie.splice(index, 1)
+                            span_categorie()
+                    }
+               }
+            )   
+               span.appendChild(close_button)
+               container.appendChild(span)
+            });
+        }
+        span_categorie()
+
         async function handleSubmit(event) {
             event.preventDefault();
-            
+            const fournisseur = document.getElementById("fournisseur").value
+            const new_fournisseur = document.getElementById("cree_fournisseur").value
+            let name = ""
+            if (fournisseur === "aucun")
+                {
+                    name = new_fournisseur
+                }
+            else {
+                 name = fournisseur
+            }
+            // return console.log(name)
+            const new_cat = document.getElementById("cree_categorie").value
+            const categorie = document.getElementById("categorie").value
+            const tab = []
+            if (categorie === "aucun"){
+                tab.push(new_cat)
+            }
+            else {
+                tab.push(tab_categorie)
+            }
+
             const formData = {
                 nom: document.getElementById('nom').value,
                 description: document.getElementById('description').value,
                 prix_achat: document.getElementById('prix_achat').value,
-                statut: document.getElementById('statut').value
+                statut: document.getElementById('statut').value,
+                nom_fournisseur : name,
+                tabNomCategories : tab
             };
 
             try {
@@ -93,7 +260,7 @@
                     method: method,
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
                     },
                     body: JSON.stringify(formData)
                 });
@@ -112,4 +279,4 @@
         }
     </script>
 </body>
-</html> 
+</html>

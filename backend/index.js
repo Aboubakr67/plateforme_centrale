@@ -1,8 +1,8 @@
 import dotenv from "dotenv";
 dotenv.config();
 import express from "express";
-// import mysql from "mysql2";
-import mysql from "mysql2/promise";
+import mysql from "mysql2";
+// import mysql from "mysql2/promise";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import cors from "cors";
@@ -37,9 +37,10 @@ const db = mysql.createPool({
 // Vérifier la connexion une fois au démarrage
 (async () => {
     try {
+        console.log(db)
         const connection = await db.getConnection();
-        console.log("✅ Connecté à MySQL !");
         connection.release(); // Libérer la connexion
+        console.log("✅ Connecté à MySQL !");
     } catch (error) {
         console.error("❌ Erreur de connexion à MySQL :", error);
         process.exit(1); // Arrêter l'application en cas d'échec critique

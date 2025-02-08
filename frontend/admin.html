@@ -16,6 +16,11 @@
             <div class="nav-links">
                 <button onclick="logout()" class="secondary">Déconnexion</button>
             </div>
+            <div class="nav-links">
+                <button onclick="window.location.href='produit-form.html'" class="primary">
+                    Crée un produit
+                </button>
+            </div>
         </nav>
 
         <div class="products-section">
@@ -103,7 +108,7 @@
 
                 if (response.status === 401) {
                     localStorage.removeItem('adminToken');
-                    window.location.href = 'admin-login.html';
+                    window.location.href = 'index.html';
                     return;
                 }
 
@@ -122,7 +127,7 @@
 
         function logout() {
             localStorage.removeItem('adminToken');
-            window.location.href = 'admin-login.html';
+            window.location.href = 'index.html';
         }
     </script>
 </body>

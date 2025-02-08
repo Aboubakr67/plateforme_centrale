@@ -4,19 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="style.css">
-    <title>Connexion Administration</title>
+    <title>Connexion Revendeur</title>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>Administration</h1>
-            <p class="subtitle">Connexion à l'interface administrateur</p>
+            <h1>Connexion Revendeur</h1>
+            <p class="subtitle">Connectez-vous pour accéder à votre espace</p>
         </div>
         
         <form id="loginForm" onsubmit="handleLogin(event)">
             <div class="form-group">
-                <label for="username">Nom d'utilisateur</label>
-                <input type="text" id="username" name="username" placeholder="Entrez votre nom d'utilisateur" required>
+                <label for="nom">Nom d'utilisateur</label>
+                <input type="text" id="nom" name="nom" placeholder="Entrez votre nom d'utilisateur" required>
             </div>
 
             <div class="form-group">
@@ -32,8 +32,8 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            if (localStorage.getItem('adminToken')) {
-                window.location.href = 'admin.html';
+            if (localStorage.getItem('token')) {
+                window.location.href = 'revendeur.html';
             }
         });
 
@@ -45,7 +45,7 @@
 
             const formData = new FormData(event.target);
             const data = {
-                nom: formData.get('username'),
+                nom: formData.get('nom'),
                 password: formData.get('password')
             };
 
@@ -58,11 +58,20 @@
                     body: JSON.stringify(data)
                 });
 
+                if (!response.ok) {
+                    throw new Error('Erreur de connexion');
+                }
+
                 const responseData = await response.json();
 
                 if (responseData.success) {
-                    localStorage.setItem('adminToken', responseData.token);
-                    window.location.href = 'admin.html';
+                    // Au lieu de chercher dans les headers, on utilise le token du corps de la réponse
+                    if (responseData.token) {
+                        localStorage.setItem('token', responseData.token);
+                        window.location.href = 'revendeur.html';
+                    } else {
+                        throw new Error('Token non trouvé');
+                    }
                 } else {
                     errorMessage.textContent = responseData.message || 'Erreur de connexion';
                     errorMessage.style.display = 'block';
@@ -75,4 +84,4 @@
         }
     </script>
 </body>
-</html> 
+</html>
