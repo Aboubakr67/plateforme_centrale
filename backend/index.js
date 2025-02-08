@@ -32,20 +32,21 @@ const db = mysql.createPool({
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
-});
+}).promise();
 
 // Vérifier la connexion une fois au démarrage
-(async () => {
+async function checkConnection() {
     try {
-        console.log(db)
         const connection = await db.getConnection();
-        connection.release(); // Libérer la connexion
+        connection.release();
         console.log("✅ Connecté à MySQL !");
-    } catch (error) {
-        console.error("❌ Erreur de connexion à MySQL :", error);
-        process.exit(1); // Arrêter l'application en cas d'échec critique
+    } catch (err) {
+        console.error("❌ Erreur de connexion à MySQL :", err);
+        process.exit(1);
     }
-})();
+}
+
+checkConnection();
 
 
 app.post("/login", async (req, res) => {
