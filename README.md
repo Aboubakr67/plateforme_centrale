@@ -130,6 +130,9 @@ npx serve frontend
 4. Pousser vers la branche
 5. Ouvrir une Pull Request
 
+# MongoDB - Migration de données
+Voir README.md dans le dossier mongodb pour plus d'information.
+
 ## Licence
 
 Ce projet est sous licence MIT.
