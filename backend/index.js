@@ -34,17 +34,19 @@ const db = mysql.createPool({
     queueLimit: 0
 });
 
-db.getConnection(err => {
-    if (err) {
-        console.error("Erreur de connexion à la base de données :", err);
-        process.exit(1); // Arrête le serveur en cas d'erreur critique
+// Vérifier la connexion une fois au démarrage
+(async () => {
+    try {
+        const connection = await db.getConnection();
+        console.log("✅ Connecté à MySQL !");
+        connection.release(); // Libérer la connexion
+    } catch (error) {
+        console.error("❌ Erreur de connexion à MySQL :", error);
+        process.exit(1); // Arrêter l'application en cas d'échec critique
     }
-    console.log("✅ Connecté à MySQL !");
-});
+})();
 
 
-// Route POST : Pour se connecter
-// http://localhost:5000/login
 app.post("/login", async (req, res) => {
     const { nom, password } = req.body;
     
@@ -57,56 +59,49 @@ app.post("/login", async (req, res) => {
 
     try {
         const sql = "SELECT * FROM users WHERE nom = ?";
-        
-        db.query(sql, [nom], async (err, results) => {
-            if (err) {
-                return res.status(500).json({ 
-                    success: false, 
-                    message: "Erreur serveur", 
-                    error: err 
-                });
-            }
+        const [results] = await db.query(sql, [nom]);
 
-            if (results.length === 0) {
+        if (results.length === 0) {
+            return res.status(401).json({ 
+                success: false, 
+                message: "Nom ou mot de passe incorrect." 
+            });
+        }
+
+        const user = results[0];
+
+        // Vérifier le mot de passe
+        if (!user.password) {
+            if (user.code_acces !== password) {
                 return res.status(401).json({ 
                     success: false, 
                     message: "Nom ou mot de passe incorrect." 
                 });
             }
+        } else {
+            const isMatch = await bcrypt.compare(password, user.password);
+            if (!isMatch) {
+                return res.status(401).json({ 
+                    success: false, 
+                    message: "Nom ou mot de passe incorrect." 
+                });
+            }
+        }
 
-            const user = results[0];
+        // Générer le token JWT
+        const token = jwt.sign(
+            { id: user.id, nom: user.nom, role: user.id_role === 1 ? "admin" : "revendeur" }, 
+            process.env.JWT_SECRET,
+            { expiresIn: "7d" }
+        );
 
-            if(!user.password) {
-                if(user.code_acces !== password) {
-                    return res.status(401).json({ 
-                        success: false, 
-                        message: "Nom ou mot de passe incorrect." 
-                    });
-                }
-            } else {
-                let isMatch = await bcrypt.compare(password, user.password);
-                if (!isMatch) {
-                    return res.status(401).json({ 
-                        success: false, 
-                        message: "Nom ou mot de passe incorrect." 
-                    });
-                }
-            }       
-            
-
-            const token = jwt.sign(
-                { id: user.id, nom: user.nom, role: user.id_role === 1 ? "admin" : "revendeur" }, 
-                process.env.JWT_SECRET,
-                { expiresIn: "7d" }
-            );
-
-            res.header("Authorization", `Bearer ${token}`);
-            res.json({ 
-                success: true, 
-                message: "Connexion réussie",
-                token: token // Ajout du token dans le corps de la réponse
-            });
+        res.header("Authorization", `Bearer ${token}`);
+        res.json({ 
+            success: true, 
+            message: "Connexion réussie",
+            token: token // Ajout du token dans la réponse
         });
+
     } catch (error) {
         console.error("Erreur lors de la connexion:", error);
         res.status(500).json({ 
@@ -117,21 +112,22 @@ app.post("/login", async (req, res) => {
     }
 });
 
+
 // Route pour récupérer tous les produits
 // GET http://localhost:5000/produits
 app.get("/produits", async (req, res) => {
     try {
         const sql = "SELECT * FROM produits";
+        const [results] = await db.query(sql);
 
-        db.query(sql, (err, results) => {
-            if (err) {
-                return res.status(500).json({ success: false, message: "Erreur serveur", error: err });
-            }
-            res.json({ success: true, produits: results });
-        });
+        res.json({ success: true, produits: results });
     } catch (error) {
         console.error("Erreur lors de la récupération des produits :", error);
-        return res.status(500).json({ success: false, message: "Erreur interne serveur", error: error.message });
+        return res.status(500).json({ 
+            success: false, 
+            message: "Erreur interne serveur", 
+            error: error.message 
+        });
     }
 });
 
@@ -142,24 +138,24 @@ app.get("/produits/:id", async (req, res) => {
 
     try {
         const sql = "SELECT * FROM produits WHERE id = ?";
+        const [results] = await db.query(sql, [id]); 
 
-        db.query(sql, [id], (err, results) => {
-            if (err) {
-                return res.status(500).json({ success: false, message: "Erreur serveur", error: err });
-            }
+        // Vérification si un produit a été trouvé
+        if (results.length === 0) {
+            return res.status(404).json({ success: false, message: "Produit non trouvé." });
+        }
 
-            // Vérification si un produit a été trouvé
-            if (results.length === 0) {
-                return res.status(404).json({ success: false, message: "Produit non trouvé." });
-            }
-
-            res.json({ success: true, produit: results[0] });
-        });
+        res.json({ success: true, produit: results[0] });
     } catch (error) {
         console.error("Erreur lors de la récupération du produit :", error);
-        return res.status(500).json({ success: false, message: "Erreur interne serveur", error: error.message });
+        return res.status(500).json({ 
+            success: false, 
+            message: "Erreur interne serveur", 
+            error: error.message 
+        });
     }
 });
+
 
 
 // Route PUT pour modifier un revendeur
@@ -168,8 +164,8 @@ app.put("/fournisseurs/:id", verifyToken, async (req, res) => {
     const { id } = req.params; // ID du revendeur à modifier
     const { nom, password } = req.body; // Nouveau nom et mot de passe
 
-    // Vérification que l'utilisateur est bien le revendeur en question
-    if (req.user.id !== parseInt(id) && req.user.id_role !== 1) {
+    // Vérification que l'utilisateur est bien le revendeur en question ou un admin
+    if (req.user.id !== parseInt(id) && req.user.role !== "admin") {
         return res.status(403).json({ success: false, message: "Vous ne pouvez modifier que vos propres données." });
     }
 
@@ -179,29 +175,28 @@ app.put("/fournisseurs/:id", verifyToken, async (req, res) => {
     }
 
     try {
-        let hashedPassword = '';
-        if(password) {
+        let hashedPassword = "";
+        if (password) {
             // Hachage du mot de passe
-        hashedPassword = await bcrypt.hash(password, 10);
+            hashedPassword = await bcrypt.hash(password, 10);
         }
 
-        // Appel de la procédure stockée
+        // Appel de la procédure stockée avec mysql2/promise
         const sql = "CALL update_user(?, ?, ?)";
-        db.query(sql, [id, nom, hashedPassword], (err, results) => {
-            if (err) {
-                if (err.message === 'Le nom est déjà pris par un autre revendeur') {
-                    return res.status(400).json({ success: false, message: err.message });
-                }
-                return res.status(500).json({ success: false, message: "Erreur serveur", error: err });
-            }
+        await db.query(sql, [id, nom, hashedPassword]); // ✅ Suppression de la callback
 
-            res.json({ success: true, message: "Données du revendeur mises à jour avec succès." });
-        });
+        res.json({ success: true, message: "Données du revendeur mises à jour avec succès." });
     } catch (error) {
         console.error("Erreur lors de la mise à jour des données du revendeur :", error);
+
+        if (error.message.includes("Le nom est déjà pris par un autre revendeur")) {
+            return res.status(400).json({ success: false, message: error.message });
+        }
+
         return res.status(500).json({ success: false, message: "Erreur interne serveur", error: error.message });
     }
 });
+
 
 // Route PUT pour modifier un produit
 // PUT http://localhost:5000/produits/:id
@@ -209,13 +204,25 @@ app.put("/produits/:id", verifyToken, async (req, res) => {
     const { id } = req.params; // ID du produit à modifier
     const { nom, description, prix_achat, statut } = req.body; // Nouveaux champs du produit
 
+    // Vérification que les champs nécessaires sont présents
+    if (!nom || !description || !prix_achat || !statut) {
+        return res.status(400).json({ 
+            success: false, 
+            message: "Tous les champs sont requis (nom, description, prix_achat, statut)." 
+        });
+    }
 
-    const sql = "SELECT id_user FROM PRODUITS WHERE id = ?";
+    // Vérification de la validité du statut
+    if (statut !== '1' && statut !== '0') {
+        return res.status(400).json({ 
+            success: false, 
+            message: "Le statut doit être '1' pour DISPONIBLE ou '0' pour EN RUPTURE." 
+        });
+    }
 
-    db.query(sql, [id], (err, results) => {
-        if (err) {
-            return res.status(500).json({ success: false, message: "Erreur serveur", error: err });
-        }
+    try {
+        // Vérification de l'existence du produit et récupération de l'utilisateur propriétaire
+        const [results] = await db.query("SELECT id_user FROM PRODUITS WHERE id = ?", [id]);
 
         if (results.length === 0) {
             return res.status(404).json({ success: false, message: "Produit non trouvé." });
@@ -223,42 +230,28 @@ app.put("/produits/:id", verifyToken, async (req, res) => {
 
         const userId = results[0].id_user;
 
-        if (userId !== req.user.id && req.user.id_role !== 1) {
+        // Vérification des permissions
+        if (userId !== req.user.id && req.user.role !== "admin") {
             return res.status(403).json({ success: false, message: "Vous ne pouvez modifier que vos propres produits." });
         }
-    });
 
-
-    // Vérification que les champs nécessaires sont présents
-    if (!nom || !description || !prix_achat || !statut) {
-        return res.status(400).json({ success: false, message: "Tous les champs sont requis (nom, description, prix_achat, statut)." });
-    }
-
-    // Vérification de la validité du statut
-    if (statut !== '1' && statut !== '0') {
-        return res.status(400).json({ success: false, message: "Le statut doit être '1' pour DISPONIBLE ou '0' pour EN RUPTURE." });
-    }
-
-    try {
         // Appel de la procédure stockée
         const sql = "CALL update_produit(?, ?, ?, ?, ?)";
-        db.query(sql, [id, nom, description, prix_achat, statut], (err, results) => {
-            if (err) {
-                return res.status(500).json({ success: false, message: "Erreur serveur", error: err });
-            }
+        const [updateResult] = await db.query(sql, [id, nom, description, prix_achat, statut]);
 
-            // Si la procédure n'a affecté aucune ligne, cela signifie que le produit n'a pas été trouvé
-            if (results.affectedRows === 0) {
-                return res.status(404).json({ success: false, message: "Produit non trouvé." });
-            }
+        // Vérification si un produit a bien été mis à jour
+        if (updateResult.affectedRows === 0) {
+            return res.status(404).json({ success: false, message: "Produit non trouvé." });
+        }
 
-            res.json({ success: true, message: "Produit mis à jour avec succès." });
-        });
+        res.json({ success: true, message: "Produit mis à jour avec succès." });
+
     } catch (error) {
         console.error("Erreur lors de la mise à jour du produit :", error);
         return res.status(500).json({ success: false, message: "Erreur interne serveur", error: error.message });
     }
 });
+
 
 
 // Route DELETE pour supprimer un fournisseur
@@ -269,18 +262,15 @@ app.delete("/fournisseurs/:id", verifyToken, async (req, res) => {
     try {
         // Appel de la procédure stockée pour supprimer le fournisseur
         const sql = "CALL delete_user(?)";
-        db.query(sql, [id], (err, results) => {
-            if (err) {
-                return res.status(500).json({ success: false, message: "Erreur serveur", error: err });
-            }
+        const [results] = await db.query(sql, [id]);
 
-            // Si la procédure n'a affecté aucune ligne, cela signifie que le fournisseur n'a pas été trouvé
-            if (results.affectedRows === 0) {
-                return res.status(404).json({ success: false, message: "Fournisseur non trouvé." });
-            }
+        // Vérification si un fournisseur a bien été supprimé
+        if (results.affectedRows === 0) {
+            return res.status(404).json({ success: false, message: "Fournisseur non trouvé." });
+        }
 
-            res.json({ success: true, message: "Fournisseur et ses produits supprimés avec succès." });
-        });
+        res.json({ success: true, message: "Fournisseur et ses produits supprimés avec succès." });
+
     } catch (error) {
         console.error("Erreur lors de la suppression du fournisseur :", error);
         return res.status(500).json({ success: false, message: "Erreur interne serveur", error: error.message });
@@ -292,9 +282,7 @@ app.delete("/fournisseurs/:id", verifyToken, async (req, res) => {
 app.post("/create-produit", verifyToken, async (req, res) => {
     const { nom, description, prix_achat, statut, nom_fournisseur, tabNomCategories } = req.body;
 
-    
-    console.log(req.user);
-    if(req.user.role !== 'admin') {
+    if (req.user.role !== 'admin') {
         return res.status(403).json({ success: false, message: "Vous ne pouvez pas créer un produit." });
     }
 
@@ -302,36 +290,31 @@ app.post("/create-produit", verifyToken, async (req, res) => {
         return res.status(400).json({ success: false, message: "Tous les champs sont requis." });
     }
 
-
     if (!Array.isArray(tabNomCategories) || tabNomCategories.length === 0) {
         return res.status(400).json({ success: false, message: "Le tableau des catégories est invalide." });
     }
 
     try {
         const tabIdCategories = await getCategories(tabNomCategories);
-
-        console.log(tabIdCategories);
-        console.log(typeof tabIdCategories);
-        // convert tabIdCategories to string split by ,
         const tabIdCategoriesString = tabIdCategories.join(',');
-        console.log(tabIdCategoriesString);
-
 
         const accessCode = generateAccessCode();
-    
-        const sql = "CALL create_product(?, ?, ?, ?, ?, ?, ?)";
 
-        db.query(sql, [nom, description, prix_achat, statut, nom_fournisseur, tabIdCategoriesString, accessCode], (err, results) => {
-            if (err) {
-                return res.status(500).json({ success: false, message: "Erreur serveur", error: err });
-            }
-
-            console.log(results);
-
-     
-         res.json({ success: true, message: "Produit créé avec succès."});
+        // Debugging logs
+        console.log({
+            nom,
+            description,
+            prix_achat,
+            statut,
+            nom_fournisseur,
+            tabIdCategoriesString,
+            accessCode
         });
-        
+
+        const sql = "CALL create_product(?, ?, ?, ?, ?, ?, ?)";
+        const [results] = await db.query(sql, [nom, description, prix_achat, statut, nom_fournisseur, tabIdCategoriesString, accessCode]);
+
+        res.json({ success: true, message: "Produit créé avec succès." });
 
     } catch (error) {
         console.error("Erreur lors de la création du produit :", error);
@@ -344,13 +327,8 @@ app.post("/create-produit", verifyToken, async (req, res) => {
 app.get("/produits_sportsalut", async (req, res) => {
     try {
         const sql = "CALL produits_sportsalut()";
-
-        db.query(sql, (err, results) => {
-            if (err) {
-                return res.status(500).json({ success: false, message: "Erreur serveur", error: err });
-            }
-            res.json({ success: true, produits: results[0] });
-        });
+        const [results] = await db.query(sql);
+        res.json({ success: true, produits: results[0] });
     } catch (error) {
         console.error("Erreur lors de la récupération des produits :", error);
         return res.status(500).json({ success: false, message: "Erreur interne serveur", error: error.message });
@@ -362,13 +340,8 @@ app.get("/produits_sportsalut", async (req, res) => {
 app.get("/produits_gamez", async (req, res) => {
     try {
         const sql = "CALL produits_gamez()";
-
-        db.query(sql, (err, results) => {
-            if (err) {
-                return res.status(500).json({ success: false, message: "Erreur serveur", error: err });
-            }
-            res.json({ success: true, produits: results[0] });
-        });
+        const [results] = await db.query(sql);
+        res.json({ success: true, produits: results[0] });
     } catch (error) {
         console.error("Erreur lors de la récupération des produits :", error);
         return res.status(500).json({ success: false, message: "Erreur interne serveur", error: error.message });
@@ -381,13 +354,8 @@ app.get("/produits_gamez", async (req, res) => {
 app.get("/produits_medidonc", async (req, res) => {
     try {
         const sql = "CALL produits_medidonc()";
-
-        db.query(sql, (err, results) => {
-            if (err) {
-                return res.status(500).json({ success: false, message: "Erreur serveur", error: err });
-            }
-            res.json({ success: true, produits: results[0] });
-        });
+        const [results] = await db.query(sql);
+        res.json({ success: true, produits: results[0] });
     } catch (error) {
         console.error("Erreur lors de la récupération des produits :", error);
         return res.status(500).json({ success: false, message: "Erreur interne serveur", error: error.message });
@@ -417,15 +385,10 @@ const generateAccessCode = (length = 10) => {
 app.get("/fournisseurs", async (req, res) => {
     try {
         const sql = "SELECT u.id, u.nom, u.date_creation, u.date_modification, u.code_acces FROM users u WHERE id_role = 2";
-
-        db.query(sql, (err, results) => {
-            if (err) {
-                return res.status(500).json({ success: false, message: "Erreur serveur", error: err });
-            }
-            res.json({ success: true, users: results });
-        });
+        const [results] = await db.query(sql);
+        res.json({ success: true, users: results });
     } catch (error) {
-        console.error("Erreur lors de la récupération des users :", error);
+        console.error("Erreur lors de la récupération des fournisseurs :", error);
         return res.status(500).json({ success: false, message: "Erreur interne serveur", error: error.message });
     }
 });
@@ -435,15 +398,10 @@ app.get("/fournisseurs", async (req, res) => {
 app.get("/categories", async (req, res) => {
     try {
         const sql = "SELECT * FROM categories";
-
-        db.query(sql, (err, results) => {
-            if (err) {
-                return res.status(500).json({ success: false, message: "Erreur serveur", error: err });
-            }
-            res.json({ success: true, categories: results });
-        });
+        const [results] = await db.query(sql);
+        res.json({ success: true, categories: results });
     } catch (error) {
-        console.error("Erreur lors de la récupération des users :", error);
+        console.error("Erreur lors de la récupération des catégories :", error);
         return res.status(500).json({ success: false, message: "Erreur interne serveur", error: error.message });
     }
 });
@@ -457,24 +415,17 @@ app.get("/fournisseurs/:id", verifyToken, async (req, res) => {
         return res.status(403).json({ success: false, message: "Ce n'est pas votre compte" });
     }
 
-
-
     try {
         const sql = "SELECT u.id, u.nom, u.date_creation, u.date_modification, u.code_acces FROM users u WHERE id = ?";
+        const [results] = await db.query(sql, [id]);
 
-        db.query(sql, [id], (err, results) => {
-            if (err) {
-                return res.status(500).json({ success: false, message: "Erreur serveur", error: err });
-            }
-            
-            if (results.length === 0) {
-                return res.status(404).json({ success: false, message: "User not found" });
-            }
+        if (results.length === 0) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
 
-            res.json({ success: true, user: results[0] });
-        });
+        res.json({ success: true, user: results[0] });
     } catch (error) {
-        console.error("Erreur lors de la récupération du user :", error);
+        console.error("Erreur lors de la récupération du fournisseur :", error);
         return res.status(500).json({ success: false, message: "Erreur interne serveur", error: error.message });
     }
 });
@@ -487,9 +438,9 @@ async function getCategories(tabNomCategories) {
         return tabIdCategories;
     }
 
-    const queries = tabNomCategories.map(async (categoryName) => {
-        const sql = "SELECT GetOrCreateCategory(?) AS id";
-        try {
+    try {
+        const queries = tabNomCategories.map(async (categoryName) => {
+            const sql = "SELECT GetOrCreateCategory(?) AS id";
             const [rows] = await db.query(sql, [categoryName]);
 
             if (Array.isArray(rows) && rows.length > 0 && rows[0].id) {
@@ -497,12 +448,13 @@ async function getCategories(tabNomCategories) {
             } else {
                 console.error(`⚠️ Problème lors de la récupération de l'ID pour : ${categoryName}`);
             }
-        } catch (error) {
-            console.error(`❌ Erreur MySQL pour ${categoryName} :`, error);
-        }
-    });
+        });
 
-    await Promise.all(queries); // Exécute toutes les requêtes SQL en parallèle
+        await Promise.all(queries); // Exécute toutes les requêtes SQL en parallèle
+    } catch (error) {
+        console.error("❌ Erreur lors de la récupération des catégories :", error);
+    }
+
     return tabIdCategories;
 }
 
