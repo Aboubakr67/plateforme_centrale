@@ -40,7 +40,7 @@ npm install
 
 2. **Configuration de la base de données** :
 - Créer une base de données MySQL
-- Exécuter le fichier `script.sql` dans votre base de données
+- Exécuter le fichier `script_v3.sql` dans votre base de données
 - Copier `.env.exemple` en `.env`
 - Remplir les informations dans `.env` :
 ```env
